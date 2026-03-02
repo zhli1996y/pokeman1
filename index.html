@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宝可梦 · 毫秒级联机对战</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        body {
+            background: #1a331f;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 12px;
+        }
+        .game-container {
+            max-width: 800px;
+            width: 100%;
+            background: #2d5a2c;
+            border: 6px solid #4a784a;
+            border-radius: 32px;
+            padding: 20px;
+            box-shadow: 0 10px 0 #1d3b1d;
+        }
+        .status-bar {
+            background: #213b21;
+            color: #b0ffb0;
+            padding: 10px 16px;
+            border-radius: 60px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+            border: 2px solid #6f9e6f;
+            text-shadow: 0 2px 0 #0f200f;
+        }
+        .peer-id-box {
+            background: #0e2b0e;
+            padding: 5px 15px;
+            border-radius: 40px;
+            color: #d0ffb0;
+            word-break: break-all;
+        }
+        .button {
+            background: #f0d060;
+            border: none;
+            border-radius: 40px;
+            padding: 8px 18px;
+            font-weight: bold;
+            font-size: 1rem;
+            color: #2d4a2d;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #b09030;
+            transition: 0.1s ease;
+            border: 2px solid #ffe68f;
+            margin: 4px 0;
+        }
+        .button:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #b09030;
+        }
+        .button:disabled {
+            opacity: 0.5;
+            transform: none;
+            box-shadow: 0 4px 0 #b09030;
+            cursor: not-allowed;
+        }
+        .connection-panel {
+            background: #3b6e3b;
+            border-radius: 28px;
+            padding: 20px;
+            border: 3px solid #569656;
+            margin-bottom: 20px;
+        }
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin: 8px 0;
+        }
+        .input {
+            background: #1f3a1f;
+            border: 3px solid #7aa87a;
+            padding: 10px 15px;
+            border-radius: 40px;
+            color: #c0ffc0;
+            font-weight: bold;
+            flex: 1 1 200px;
+            outline: none;
+        }
+        .input::placeholder {
+            color: #6f9e6f;
+        }
+        .battlefield {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+            gap: 20px;
+            margin: 20px 0 30px;
+        }
+        .pokemon-card {
+            background: #f8f0d0;
+            border-radius: 30px;
+            padding: 20px 15px;
+            flex: 1;
+            text-align: center;
+            border: 5px solid #c0a050;
+            box-shadow: inset 0 -5px 0 #a08040, 0 8px 0 #6b4e2e;
+            image-rendering: pixelated;
+        }
+        .pokemon-name {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2d2d0a;
+            letter-spacing: 2px;
+            margin: 5px 0;
+        }
+        .hp-bar {
+            background: #404040;
+            height: 20px;
+            border-radius: 30px;
+            margin: 10px 0;
+            overflow: hidden;
+            border: 2px solid #202020;
+        }
+        .hp-fill {
+            height: 100%;
+            width: 100%;
+            background: #60d060;
+            transition: width 0.2s;
+        }
+        .hp-text {
+            font-weight: bold;
+            font-size: 1.4rem;
+            color: #282800;
+        }
+        .versus {
+            font-size: 2.2rem;
+            align-self: center;
+            color: #ffe484;
+            text-shadow: 4px 4px 0 #7f5f20;
+        }
+        .log-area {
+            background: #1b2e1b;
+            border-radius: 24px;
+            padding: 15px;
+            border: 3px solid #6fa06f;
+            color: #c6ffc6;
+            height: 150px;
+            overflow-y: auto;
+            font-weight: bold;
+            line-height: 1.5;
+            box-shadow: inset 0 0 10px #0f200f;
+            margin-top: 10px;
+        }
+        .log-entry {
+            border-bottom: 1px solid #4e7a4e;
+            padding: 4px 0;
+        }
+        .attack-btn {
+            background: #f06060;
+            color: #2d0a0a;
+            box-shadow: 0 5px 0 #a04040;
+            border-color: #ffa0a0;
+            font-size: 1.3rem;
+            padding: 12px 20px;
+            margin-top: 15px;
+            width: 100%;
+        }
+        .reset-btn {
+            background: #90a0d0;
+            box-shadow: 0 4px 0 #506090;
+            border-color: #c0d0ff;
+        }
+        .ping-btn {
+            background: #70b070;
+            box-shadow: 0 4px 0 #307030;
+            border-color: #a0e0a0;
+        }
+        .footer-note {
+            color: #9fcc9f;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+    </style>
+    <!-- 使用 jsDelivr CDN 加载 PeerJS，更稳定 -->
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+<div class="game-container">
+    <div class="status-bar">
+        <span>⚡ 毫秒级宝可梦文字战 ⚡</span>
+        <span class="peer-id-box" id="peerIdDisplay">未生成ID</span>
+    </div>
+
+    <div class="connection-panel">
+        <div class="flex-row">
+            <button class="button" id="createPeerBtn">🎮 生成我的ID</button>
+            <button class="button" id="copyPeerIdBtn" disabled>📋 复制ID</button>
+        </div>
+        <div class="flex-row">
+            <input type="text" id="remotePeerInput" class="input" placeholder="输入好友的ID" value="">
+            <button class="button" id="connectBtn" disabled>🔌 连接好友</button>
+        </div>
+        <div class="flex-row">
+            <span style="color:#b4f0b4;">连接状态：</span>
+            <span id="connectionStatus">⚪ 未连接</span>
+            <button class="button ping-btn" id="pingBtn" disabled>📶 测延迟</button>
+            <span id="pingResult"></span>
+        </div>
+    </div>
+
+    <div class="battlefield">
+        <div class="pokemon-card">
+            <div class="pokemon-name">⚡皮卡丘⚡</div>
+            <div class="hp-bar"><div id="myHpFill" class="hp-fill" style="width:100%;"></div></div>
+            <div class="hp-text" id="myHpText">100/100</div>
+            <div style="font-size:1.2rem;">Lv.25</div>
+        </div>
+        <div class="versus">VS</div>
+        <div class="pokemon-card">
+            <div class="pokemon-name">🔥小火龙🔥</div>
+            <div class="hp-bar"><div id="oppHpFill" class="hp-fill" style="width:100%;"></div></div>
+            <div class="hp-text" id="oppHpText">100/100</div>
+            <div style="font-size:1.2rem;">Lv.25</div>
+        </div>
+    </div>
+
+    <button class="button attack-btn" id="attackBtn" disabled>⚡ 十万伏特 (毫秒级) ⚡</button>
+    <div style="display: flex; gap: 10px;">
+        <button class="button reset-btn" id="resetBtn" disabled>🔄 重新开始</button>
+    </div>
+
+    <div class="log-area" id="logPanel">
+        <div class="log-entry">✨ 优化版：二进制心跳 + 延迟测试 ✨</div>
+    </div>
+    <div class="footer-note">点对点直连 · 毫秒级响应 · 无需服务器</div>
+</div>
+
+<script>
+(function() {
+    // --- 游戏状态 ---
+    let myPeer = null;
+    let conn = null;
+    let myPeerId = '';
+    let myHp = 100;
+    let oppHp = 100;
+    const MAX_HP = 100;
+    let heartbeatInterval = null;
+
+    // --- DOM 元素 ---
+    const peerIdDisplay = document.getElementById('peerIdDisplay');
+    const createPeerBtn = document.getElementById('createPeerBtn');
+    const copyPeerIdBtn = document.getElementById('copyPeerIdBtn');
+    const remotePeerInput = document.getElementById('remotePeerInput');
+    const connectBtn = document.getElementById('connectBtn');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const attackBtn = document.getElementById('attackBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const pingBtn = document.getElementById('pingBtn');
+    const pingResult = document.getElementById('pingResult');
+    const logPanel = document.getElementById('logPanel');
+    const myHpFill = document.getElementById('myHpFill');
+    const myHpText = document.getElementById('myHpText');
+    const oppHpFill = document.getElementById('oppHpFill');
+    const oppHpText = document.getElementById('oppHpText');
+
+    // --- 日志函数 ---
+    function addLog(message) {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.textContent = '> ' + message;
+        logPanel.appendChild(entry);
+        logPanel.scrollTop = logPanel.scrollHeight;
+        if (logPanel.children.length > 30) {
+            logPanel.removeChild(logPanel.children[0]);
+        }
+    }
+
+    // --- 更新HP显示 ---
+    function updateHpDisplay() {
+        myHp = Math.max(0, Math.min(MAX_HP, myHp));
+        oppHp = Math.max(0, Math.min(MAX_HP, oppHp));
+        myHpFill.style.width = (myHp / MAX_HP * 100) + '%';
+        myHpText.textContent = myHp + '/' + MAX_HP;
+        oppHpFill.style.width = (oppHp / MAX_HP * 100) + '%';
+        oppHpText.textContent = oppHp + '/' + MAX_HP;
+    }
+
+    // --- 重置战斗 (本地) ---
+    function resetBattle() {
+        myHp = MAX_HP;
+        oppHp = MAX_HP;
+        updateHpDisplay();
+        addLog('🔄 战斗已重置');
+    }
+
+    // --- 检查濒死 ---
+    function checkFaint() {
+        if (myHp <= 0) addLog('😵 你的皮卡丘倒下了... 快重置！');
+        if (oppHp <= 0) addLog('🎉 对方的小火龙倒下了！');
+    }
+
+    // --- 处理收到的数据 (兼容二进制和JSON) ---
+    function handleIncomingData(data) {
+        // 处理二进制消息 (Uint8Array / ArrayBuffer)
+        if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
+            const view = new Uint8Array(data);
+            if (view.length === 0) return;
+            const type = view[0];
+            switch (type) {
+                case 0x03: // 心跳包，忽略
+                    break;
+                case 0x04: { // Ping 请求
+                    if (conn) {
+                        conn.send(new Uint8Array([0x05]).buffer); // 回复 Pong
+                    }
+                    break;
+                }
+                case 0x05: { // Pong 响应
+                    const end = performance.now();
+                    const start = window.__pingStart;
+                    if (start) {
+                        const rtt = end - start;
+                        pingResult.textContent = `${rtt.toFixed(1)}ms`;
+                        addLog(`📊 当前延迟: ${rtt.toFixed(1)}ms`);
+                    }
+                    break;
+                }
+                default:
+                    // 其他二进制可扩展
+                    break;
+            }
+            return;
+        }
+
+        // 处理 JSON 文本消息
+        if (typeof data === 'string') {
+            try {
+                const obj = JSON.parse(data);
+                switch (obj.type) {
+                    case 'attack':
+                        // 只有对方发来的攻击才生效 (避免自己扣自己)
+                        if (obj.attackerId !== myPeerId) {
+                            myHp = Math.max(0, myHp - obj.damage);
+                            addLog(`🔥 对方攻击造成 ${obj.damage} 伤害`);
+                            updateHpDisplay();
+                            checkFaint();
+                        }
+                        break;
+                    case 'reset':
+                        resetBattle();
+                        addLog('✨ 对方发起了重置');
+                        break;
+                    case 'sync-request':
+                        if (conn) {
+                            conn.send(JSON.stringify({
+                                type: 'sync-response',
+                                myHp: myHp,
+                                oppHp: oppHp
+                            }));
+                        }
+                        break;
+                    case 'sync-response':
+                        // 对方视角的 myHp 是我方对手的HP，oppHp 是我方自己的HP
+                        oppHp = Math.min(MAX_HP, Math.max(0, obj.myHp));
+                        myHp = Math.min(MAX_HP, Math.max(0, obj.oppHp));
+                        updateHpDisplay();
+                        addLog('📥 状态同步完成');
+                        break;
+                    default:
+                        break;
+                }
+            } catch (e) {
+                // 非JSON忽略
+            }
+        }
+    }
+
+    // --- 设置连接 ---
+    function setupConnection(connection) {
+        if (conn) {
+            conn.close();
+            clearInterval(heartbeatInterval);
+        }
+        conn = connection;
+        connectionStatus.innerText = '🟢 已连接 ( ' + (connection.peer || '未知') + ' )';
+        addLog('🔗 连接成功！启用毫秒级对战');
+
+        conn.on('data', handleIncomingData);
+        conn.on('close', () => {
+            connectionStatus.innerText = '🔴 连接断开';
+            addLog('❌ 连接关闭');
+            conn = null;
+            attackBtn.disabled = true;
+            resetBtn.disabled = true;
+            pingBtn.disabled = true;
+            clearInterval(heartbeatInterval);
+        });
+        conn.on('error', (err) => addLog('⚠️ 连接错误: ' + err));
+
+        // 启动心跳 (每5秒发送一个空二进制包，维持NAT映射)
+        heartbeatInterval = setInterval(() => {
+            if (conn && conn.open) {
+                conn.send(new Uint8Array([0x03]).buffer);
+            }
+        }, 5000);
+
+        // 请求同步状态 (延迟一点等待连接稳定)
+        setTimeout(() => {
+            if (conn && conn.open) {
+                conn.send(JSON.stringify({ type: 'sync-request' }));
+            }
+        }, 500);
+
+        attackBtn.disabled = false;
+        resetBtn.disabled = false;
+        pingBtn.disabled = false;
+    }
+
+    // --- 创建 Peer (生成ID) ---
+    createPeerBtn.addEventListener('click', () => {
+        if (myPeer) {
+            myPeer.destroy();
+            myPeer = null;
+        }
+        myPeer = new Peer(); // 使用默认公共服务器
+        myPeer.on('open', (id) => {
+            myPeerId = id;
+            peerIdDisplay.innerText = id;
+            copyPeerIdBtn.disabled = false;
+            connectBtn.disabled = false;
+            connectionStatus.innerText = '⏳ 等待连接或输入好友ID';
+            addLog('✅ 你的ID: ' + id);
+        });
+        myPeer.on('connection', (incomingConn) => setupConnection(incomingConn));
+        myPeer.on('error', (err) => {
+            addLog('⚠️ Peer错误: ' + err.type);
+            console.error(err);
+        });
+    });
+
+    // --- 复制ID ---
+    copyPeerIdBtn.addEventListener('click', () => {
+        if (myPeerId) {
+            navigator.clipboard.writeText(myPeerId)
+                .then(() => addLog('📋 ID已复制'))
+                .catch(() => addLog('❌ 复制失败，手动选中复制'));
+        }
+    });
+
+    // --- 连接好友 ---
+    connectBtn.addEventListener('click', () => {
+        const remoteId = remotePeerInput.value.trim();
+        if (!myPeer) {
+            addLog('请先生成你的ID');
+            return;
+        }
+        if (!remoteId) {
+            addLog('请输入好友的ID');
+            return;
+        }
+        if (conn) conn.close();
+        const newConn = myPeer.connect(remoteId);
+        if (newConn) {
+            newConn.on('open', () => setupConnection(newConn));
+            newConn.on('error', (err) => addLog('连接错误: ' + err));
+        } else {
+            addLog('无法创建连接，请检查ID');
+        }
+    });
+
+    // --- 攻击 ---
+    attackBtn.addEventListener('click', () => {
+        if (!conn) {
+            addLog('⚠️ 未连接');
+            return;
+        }
+        if (myHp <= 0) {
+            addLog('😵 你已倒下');
+            return;
+        }
+        if (oppHp <= 0) {
+            addLog('🏁 对方已倒下');
+            return;
+        }
+        const damage = Math.floor(Math.random() * 21) + 10; // 10~30
+        oppHp = Math.max(0, oppHp - damage);
+        updateHpDisplay();
+        addLog(`⚡ 你的十万伏特造成 ${damage} 伤害！`);
+        conn.send(JSON.stringify({
+            type: 'attack',
+            damage: damage,
+            attackerId: myPeerId
+        }));
+        checkFaint();
+    });
+
+    // --- 重置 (并通知对方) ---
+    resetBtn.addEventListener('click', () => {
+        if (!conn) {
+            resetBattle();
+            return;
+        }
+        myHp = MAX_HP;
+        oppHp = MAX_HP;
+        updateHpDisplay();
+        addLog('🔄 你发起了重置');
+        conn.send(JSON.stringify({ type: 'reset' }));
+    });
+
+    // --- 测延迟 (发送二进制Ping) ---
+    pingBtn.addEventListener('click', () => {
+        if (!conn) {
+            addLog('未连接');
+            return;
+        }
+        window.__pingStart = performance.now();
+        conn.send(new Uint8Array([0x04]).buffer);
+        pingResult.textContent = '测距中...';
+    });
+
+    // --- 初始化UI ---
+    attackBtn.disabled = true;
+    resetBtn.disabled = true;
+    pingBtn.disabled = true;
+    updateHpDisplay();
+})();
+</script>
+</body>
+</html>
