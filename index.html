@@ -2,150 +2,255 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>口袋妖怪：网页联机版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>宝可梦：代码像素版（修复版）</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f0f0; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        #game-container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        .hp-bar { height: 10px; background: #eee; border-radius: 5px; margin: 5px 0; overflow: hidden; }
-        .hp-fill { height: 100%; background: #4caf50; transition: width 0.3s; }
-        .log { height: 150px; border: 1px solid #ddd; margin: 10px 0; padding: 10px; overflow-y: auto; font-size: 14px; background: #fafafa; }
+        :root { --fire: #ff5a5a; --water: #54a3ff; --grass: #50c878; }
+        body { font-family: 'Courier New', Courier, monospace; background: #222; color: #fff; margin: 0; display: flex; justify-content: center; }
+        #game-container { width: 100%; max-width: 450px; background: #333; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        .poke-sprite { width: 80px; height: 80px; margin: 0 auto; position: relative; transition: all 0.2s; }
+        .fire-skin { background: var(--fire); border-radius: 10px; border: 4px solid #fff; }
+        .water-skin { background: var(--water); border-radius: 50%; border: 4px solid #fff; }
+        .grass-skin { background: var(--grass); clip-path: polygon(50% 0%, 100% 100%, 0% 100%); border: 4px solid #fff; }
+        .shake { animation: shake 0.3s; }
+        @keyframes shake { 0% {transform: translate(0)} 25% {transform: translate(5px)} 50% {transform: translate(-5px)} 100% {transform: translate(0)} }
+        .flash { opacity: 0.5; }
+        .hp-container { background: #555; height: 12px; border-radius: 6px; border: 2px solid #000; margin: 8px 0; }
+        .hp-bar { height: 100%; width: 100%; transition: width 0.5s ease; background: #4caf50; }
+        .log { background: #000; color: #0f0; padding: 10px; height: 120px; overflow-y: auto; font-size: 13px; border: 2px solid #555; margin-bottom: 15px; }
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { padding: 10px; border: none; border-radius: 5px; background: #3498db; color: white; cursor: pointer; }
-        button:disabled { background: #ccc; }
-        input { padding: 8px; width: 70%; border: 1px solid #ddd; border-radius: 5px; }
-        .hidden { display: none; }
+        button { background: #444; color: white; border: 2px solid #888; padding: 15px 5px; font-size: 16px; border-radius: 8px; }
+        button:active { background: #666; }
+        button:disabled { color: #777; border-color: #444; }
+        #setup { text-align: center; padding-top: 50px; }
+        input { padding: 12px; border-radius: 5px; border: none; width: 80%; margin-bottom: 10px; }
+        .type-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <h2>Pokémon Web Battle</h2>
-        
-        <div id="setup">
-            <p>我的 ID: <strong id="my-id">正在生成...</strong></p>
-            <input type="text" id="peer-id-input" placeholder="输入朋友的 ID">
-            <button onclick="connectToPeer()">连接朋友</button>
-            <p style="font-size: 12px; color: #666;">发送你的ID给朋友，或者输入对方的ID开始。</p>
-        </div>
-
-        <div id="battle-area" class="hidden">
-            <div id="opp-info">
-                <strong>对方: <span id="opp-name">???</span></strong>
-                <div class="hp-bar"><div id="opp-hp-fill" class="hp-fill" style="width: 100%;"></div></div>
-            </div>
-            
-            <div id="my-info" style="margin-top: 20px;">
-                <strong>我方: <span id="my-name">???</span></strong>
-                <div class="hp-bar"><div id="my-hp-fill" class="hp-fill" style="width: 100%;"></div></div>
-            </div>
-
-            <div class="log" id="battle-log">等待战斗开始...</div>
-
-            <div class="btn-grid" id="action-buttons">
-                <button onclick="attack(0)">撞击</button>
-                <button onclick="attack(1)">特殊攻击</button>
-            </div>
-        </div>
+<div id="game-container">
+    <div id="setup">
+        <h1>POKEMON CODE</h1>
+        <p>你的 ID: <b id="my-id">获取中...</b></p>
+        <input type="text" id="peer-id-input" placeholder="贴入朋友的 ID">
+        <button onclick="connectToPeer()" style="width: 85%">开始远程对战</button>
+        <p style="font-size: 12px; color: #aaa; margin-top: 20px;">无需服务器，代码即连</p>
     </div>
 
+    <div id="battle-area" style="display: none;">
+        <div style="text-align: left;">
+            <div id="opp-sprite" class="poke-sprite"></div>
+            <div style="margin-left: 10px;">
+                <span id="opp-name">敌人</span> <span id="opp-type" class="type-badge"></span>
+                <div class="hp-container"><div id="opp-hp-bar" class="hp-bar"></div></div>
+            </div>
+        </div>
+
+        <div style="height: 40px;"></div>
+
+        <div style="text-align: right;">
+            <div id="my-sprite" class="poke-sprite"></div>
+            <div style="margin-right: 10px;">
+                <span id="my-type" class="type-badge"></span> <span id="my-name">我方</span>
+                <div class="hp-container"><div id="my-hp-bar" class="hp-bar"></div></div>
+            </div>
+        </div>
+
+        <div class="log" id="battle-log"></div>
+
+        <div class="btn-grid" id="action-buttons">
+            <button onclick="attack(0)" id="skill-0">技能1</button>
+            <button onclick="attack(1)" id="skill-1">技能2</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    const POKEMON_DATA = [
-        { name: "小火龙", hp: 100, type: "火", skills: ["抓击", "火花"], atk: [15, 25] },
-        { name: "杰尼龟", hp: 110, type: "水", skills: ["撞击", "水枪"], atk: [12, 22] },
-        { name: "妙蛙种子", hp: 105, type: "草", skills: ["撞击", "藤鞭"], atk: [13, 23] }
+    const POKEDEX = [
+        { name: "小火龙", type: "火", hp: 120, skin: "fire-skin", skills: ["火花", "劈开"], power: [25, 15] },
+        { name: "杰尼龟", type: "水", hp: 140, skin: "water-skin", skills: ["水枪", "缩入壳中"], power: [20, 10] },
+        { name: "妙蛙种子", type: "草", hp: 130, skin: "grass-skin", skills: ["藤鞭", "冲击"], power: [22, 15] }
     ];
+
+    const CHART = { "火": {"草": 2, "水": 0.5}, "水": {"火": 2, "草": 0.5}, "草": {"水": 2, "火": 0.5} };
 
     let peer, conn;
     let myPoke, oppPoke;
     let myHP, oppHP;
     let myTurn = false;
+    let battleStarted = false; // 防止重复初始化
 
-    // 初始化 PeerJS
+    // 初始化 Peer
     peer = new Peer();
-    peer.on('open', id => document.getElementById('my-id').innerText = id);
+    peer.on('open', id => {
+        document.getElementById('my-id').innerText = id;
+        console.log('Peer open, ID:', id);
+    });
 
-    // 监听他人连接请求
-    peer.on('connection', c => {
-        conn = c;
-        setupConnection();
+    peer.on('connection', (incomingConn) => {
+        console.log('收到连接请求');
+        conn = incomingConn;
+        setupConnection(conn, false); // 被动方，不主动发送INIT
+    });
+
+    peer.on('error', (err) => {
+        console.error('Peer错误:', err);
+        alert('Peer错误: ' + err.type);
     });
 
     function connectToPeer() {
-        const id = document.getElementById('peer-id-input').value;
-        conn = peer.connect(id);
-        setupConnection();
+        const remoteId = document.getElementById('peer-id-input').value.trim();
+        if (!remoteId) {
+            alert('请输入朋友的ID');
+            return;
+        }
+        console.log('尝试连接至:', remoteId);
+        conn = peer.connect(remoteId);
+        setupConnection(conn, true); // 主动方，会在连接打开后发送INIT
     }
 
-    function setupConnection() {
-        conn.on('open', () => {
-            document.getElementById('setup').classList.add('hidden');
-            document.getElementById('battle-area').classList.remove('hidden');
-            
-            // 随机分配宝可梦
-            myPoke = POKEMON_DATA[Math.floor(Math.random() * POKEMON_DATA.length)];
+    // 统一连接设置
+    function setupConnection(connection, isInitiator) {
+        connection.on('open', () => {
+            console.log('连接已打开, isInitiator:', isInitiator);
+            // 随机选择自己的宝可梦
+            myPoke = POKEDEX[Math.floor(Math.random() * 3)];
             myHP = myPoke.hp;
-            
-            // 发送数据
-            conn.send({ type: 'INIT', poke: myPoke });
+            console.log('我的宝可梦:', myPoke);
+
+            if (isInitiator) {
+                // 主动方：发送 INIT
+                connection.send({ type: 'INIT', poke: myPoke });
+                console.log('发送 INIT');
+            }
+            // 注意：被动方不主动发送，等待对方的INIT后再回复
         });
 
-        conn.on('data', data => {
-            if (data.type === 'INIT') {
+        connection.on('data', (data) => {
+            console.log('收到数据:', data);
+            if (!battleStarted && data.type === 'INIT') {
+                // 收到对方的初始化信息
                 oppPoke = data.poke;
                 oppHP = oppPoke.hp;
-                updateUI();
-                log(`战斗开始！对方派出了 ${oppPoke.name}`);
-                myTurn = true; // 先连入者或随机一方先手
+                console.log('收到对方宝可梦:', oppPoke);
+
+                // 如果是被动方，立即回复自己的宝可梦
+                if (!isInitiator) {
+                    connection.send({ type: 'INIT_RESPONSE', poke: myPoke });
+                    console.log('发送 INIT_RESPONSE');
+                }
+
+                // 启动战斗界面（如果还没启动）
+                if (!battleStarted) {
+                    battleStarted = true;
+                    myTurn = !isInitiator; // 被动方先手（因为是主动方先连接？通常主动方先手，但这里可自定义，我们让主动方后手）
+                    // 为了公平，可以让主动方先手？但原代码让被挑战者先手。我们保持原意：被挑战者（被动方）先手。
+                    // 但这里 isInitiator 为 true 表示主动连接者，我们让被动方先手（即 isInitiator = false 时先手）
+                    startBattle();
+                }
+            } else if (data.type === 'INIT_RESPONSE') {
+                // 主动方收到对方的回复
+                oppPoke = data.poke;
+                oppHP = oppPoke.hp;
+                console.log('收到对方宝可梦(响应):', oppPoke);
+                if (!battleStarted) {
+                    battleStarted = true;
+                    myTurn = true; // 主动方先手（可根据需要调整）
+                    startBattle();
+                }
             } else if (data.type === 'ATTACK') {
-                handleOpponentAttack(data);
+                handleDamage(data);
             }
+        });
+
+        connection.on('error', (err) => {
+            console.error('连接错误:', err);
+            alert('连接错误: ' + err);
+        });
+
+        connection.on('close', () => {
+            console.log('连接关闭');
+            alert('连接已关闭');
+            // 可返回设置界面
+            location.reload(); // 简单刷新重来
         });
     }
 
-    function log(msg) {
-        const logBox = document.getElementById('battle-log');
-        logBox.innerHTML += `<div>${msg}</div>`;
-        logBox.scrollTop = logBox.scrollHeight;
+    function startBattle() {
+        document.getElementById('setup').style.display = 'none';
+        document.getElementById('battle-area').style.display = 'block';
+        updateUI();
+        log(`战斗开始！${myTurn ? '你先手' : '对方先手'}`);
+    }
+
+    function attack(idx) {
+        if (!myTurn || myHP <= 0 || oppHP <= 0) return;
+
+        // 计算伤害
+        let mult = CHART[myPoke.type]?.[oppPoke.type] || 1;
+        let dmg = Math.floor(myPoke.power[idx] * mult + Math.random() * 5);
+        oppHP = Math.max(0, oppHP - dmg);
+        log(`你使用 ${myPoke.skills[idx]}！${mult > 1 ? '效果拔群！' : mult < 1 ? '收效甚微...' : ''} 造成 ${dmg} 伤害`);
+
+        // 动画
+        const oppEl = document.getElementById('opp-sprite');
+        oppEl.classList.add('shake', 'flash');
+        setTimeout(() => oppEl.classList.remove('shake', 'flash'), 300);
+
+        // 发送给对方
+        conn.send({
+            type: 'ATTACK',
+            dmg: dmg,
+            skill: myPoke.skills[idx],
+            mult: mult
+        });
+
+        myTurn = false;
+        updateUI();
+        if (oppHP <= 0) log("🏆 你赢了！");
+    }
+
+    function handleDamage(data) {
+        myHP = Math.max(0, myHP - data.dmg);
+        log(`对方使用 ${data.skill}！造成 ${data.dmg} 伤害`);
+
+        const myEl = document.getElementById('my-sprite');
+        myEl.classList.add('shake', 'flash');
+        setTimeout(() => myEl.classList.remove('shake', 'flash'), 300);
+
+        myTurn = true;
+        updateUI();
+        if (myHP <= 0) log("💀 你倒下了...");
     }
 
     function updateUI() {
+        if (!myPoke || !oppPoke) return;
+
+        // 我方
         document.getElementById('my-name').innerText = myPoke.name;
+        document.getElementById('my-type').innerText = myPoke.type;
+        document.getElementById('my-hp-bar').style.width = (myHP / myPoke.hp * 100) + "%";
+        document.getElementById('my-sprite').className = "poke-sprite " + myPoke.skin;
+
+        // 对方
         document.getElementById('opp-name').innerText = oppPoke.name;
-        document.getElementById('my-hp-fill').style.width = (myHP / myPoke.hp * 100) + "%";
-        document.getElementById('opp-hp-fill').style.width = (oppHP / oppPoke.hp * 100) + "%";
-        
+        document.getElementById('opp-type').innerText = oppPoke.type;
+        document.getElementById('opp-hp-bar').style.width = (oppHP / oppPoke.hp * 100) + "%";
+        document.getElementById('opp-sprite').className = "poke-sprite " + oppPoke.skin;
+
+        document.getElementById('skill-0').innerText = myPoke.skills[0];
+        document.getElementById('skill-1').innerText = myPoke.skills[1];
+
         const btns = document.querySelectorAll('#action-buttons button');
-        btns[0].innerText = myPoke.skills[0];
-        btns[1].innerText = myPoke.skills[1];
-        btns.forEach(b => b.disabled = !myTurn);
+        btns.forEach(b => b.disabled = !myTurn || myHP <= 0 || oppHP <= 0);
     }
 
-    function attack(skillIdx) {
-        if (!myTurn) return;
-        const damage = myPoke.atk[skillIdx] + Math.floor(Math.random() * 5);
-        oppHP = Math.max(0, oppHP - damage);
-        
-        log(`你使用了 ${myPoke.skills[skillIdx]}，造成了 ${damage} 点伤害！`);
-        conn.send({ type: 'ATTACK', skill: myPoke.skills[skillIdx], dmg: damage });
-        
-        myTurn = false;
-        updateUI();
-        checkEnd();
-    }
-
-    function handleOpponentAttack(data) {
-        myHP = Math.max(0, myHP - data.dmg);
-        log(`对方使用了 ${data.skill}，你受到了 ${data.dmg} 点伤害！`);
-        myTurn = true;
-        updateUI();
-        checkEnd();
-    }
-
-    function checkEnd() {
-        if (myHP <= 0) log("<b>你输了...</b>");
-        if (oppHP <= 0) log("<b>你赢了！</b>");
+    function log(msg) {
+        const lb = document.getElementById('battle-log');
+        lb.innerHTML += `> ${msg}<br>`;
+        lb.scrollTop = lb.scrollHeight;
     }
 </script>
 </body>
